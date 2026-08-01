@@ -1,0 +1,413 @@
+-- ========================================================
+-- Delta UI Script: Ultimate God Menu + Teleport System
+-- ========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+
+-- States
+local espEnabled = false
+local noclipEnabled = false
+local speedEnabled = false
+local jumpEnabled = false
+local brightEnabled = false
+local magnetEnabled = false
+local hitboxEnabled = false
+
+-- Teleport Variables
+local targetPlayerIndex = 1
+
+-- Save Original Lighting Settings
+local origBrightness = Lighting.Brightness
+local origClockTime = Lighting.ClockTime
+local origFogEnd = Lighting.FogEnd
+local origGlobalShadows = Lighting.GlobalShadows
+
+-----------------------------------------------------------
+-- 1. Sound Setup
+-----------------------------------------------------------
+local function playSound(soundId, pitch)
+    task.spawn(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://" .. tostring(soundId)
+        sound.Volume = 0.6
+        sound.Pitch = pitch or 1
+        sound.Parent = SoundService
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    end)
+end
+
+local SOUND_ID = 6895079853
+
+-----------------------------------------------------------
+-- 2. Core Functions
+-----------------------------------------------------------
+
+-- ESP System
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    
+    local function setupHighlight(character)
+        if not character then return end
+        if character:FindFirstChild("DeltaESP") then return end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "DeltaESP"
+        highlight.FillColor = Color3.fromRGB(255, 0, 127)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.Adornee = character
+        highlight.Parent = character
+        
+        local head = character:WaitForChild("Head", 3)
+        if head and not head:FindFirstChild("DeltaNameTag") then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "DeltaNameTag"
+            billboard.Adornee = head
+            billboard.Size = UDim2.new(0, 100, 0, 30)
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+            billboard.AlwaysOnTop = true
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.DisplayName
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLabel.TextStrokeTransparency = 0
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 12
+            nameLabel.Parent = billboard
+            billboard.Parent = head
+        end
+    end
+
+    if player.Character then setupHighlight(player.Character) end
+    player.CharacterAdded:Connect(setupHighlight)
+end
+
+local function removeESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local hl = player.Character:FindFirstChild("DeltaESP")
+            if hl then hl:Destroy() end
+            if player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("DeltaNameTag") then
+                player.Character.Head.DeltaNameTag:Destroy()
+            end
+        end
+    end
+end
+
+-- Main Loop (Noclip, Speed, Jump, Magnet, Hitbox)
+RunService.Stepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    -- Noclip
+    if noclipEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end
+
+    -- Speed & Jump
+    if hum then
+        if speedEnabled then hum.WalkSpeed = 50 else hum.WalkSpeed = 16 end
+        if jumpEnabled then hum.JumpPower = 120 else hum.JumpPower = 50 end
+    end
+
+    -- Item Magnet (ดูดของใกล้ตัว)
+    if magnetEnabled and hrp then
+        for _, v in pairs(workspace:GetChildren()) do
+            if v:IsA("Part") or v:IsA("MeshPart") then
+                if not v:Anchored() and (v.Position - hrp.Position).Magnitude <= 50 then
+                    v.CFrame = hrp.CFrame
+                end
+            end
+        end
+    end
+
+    -- Hitbox Expander
+    if hitboxEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    targetHrp.Size = Vector3.new(10, 10, 10)
+                    targetHrp.Transparency = 0.7
+                    targetHrp.BrickColor = BrickColor.new("Really red")
+                    targetHrp.Material = Enum.Material.Neon
+                    targetHrp.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-----------------------------------------------------------
+-- 3. GUI Design (ปรับขนาดรองรับ Teleport)
+-----------------------------------------------------------
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+if playerGui:FindFirstChild("DeltaGodGUI") then
+    playerGui.DeltaGodGUI:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaGodGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 240, 0, 480)
+mainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(138, 43, 226)
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚡ DELTA GOD MENU"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 15
+titleLabel.Parent = mainFrame
+
+-- Function to Create Toggle Button
+local function createToggleButton(name, posY, onClick)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.88, 0, 0, 36)
+    button.Position = UDim2.new(0.06, 0, 0, posY)
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    button.Text = name .. " : OFF"
+    button.TextColor3 = Color3.fromRGB(180, 180, 180)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 12
+    button.AutoButtonColor = false
+    button.Parent = mainFrame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = button
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(60, 60, 80)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = button
+
+    local state = false
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            playSound(SOUND_ID, 1.2)
+            button.Text = name .. " : ON"
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+            btnStroke.Color = Color3.fromRGB(200, 100, 255)
+        else
+            playSound(SOUND_ID, 0.7)
+            button.Text = name .. " : OFF"
+            button.TextColor3 = Color3.fromRGB(180, 180, 180)
+            button.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+            btnStroke.Color = Color3.fromRGB(60, 60, 80)
+        end
+        onClick(state)
+    end)
+end
+
+-----------------------------------------------------------
+-- 4. Create All Buttons
+-----------------------------------------------------------
+createToggleButton("👁️ ESP (มองทะลุ)", 45, function(enabled)
+    espEnabled = enabled
+    if espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do applyESP(p) end
+    else
+        removeESP()
+    end
+end)
+
+createToggleButton("👻 NOCLIP (เดินทะลุ)", 85, function(enabled)
+    noclipEnabled = enabled
+end)
+
+createToggleButton("⚡ SPEED BOOST (วิ่งไว)", 125, function(enabled)
+    speedEnabled = enabled
+end)
+
+createToggleButton("🦘 HIGH JUMP (โดดสูง)", 165, function(enabled)
+    jumpEnabled = enabled
+end)
+
+createToggleButton("💡 FULLBRIGHT (แมพสว่าง)", 205, function(enabled)
+    brightEnabled = enabled
+    if brightEnabled then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = origBrightness
+        Lighting.ClockTime = origClockTime
+        Lighting.FogEnd = origFogEnd
+        Lighting.GlobalShadows = origGlobalShadows
+    end
+end)
+
+createToggleButton("🧲 ITEM MAGNET (ดูดของ)", 245, function(enabled)
+    magnetEnabled = enabled
+end)
+
+createToggleButton("🎯 HITBOX EXPAND (ตัวใหญ่)", 285, function(enabled)
+    hitboxEnabled = enabled
+    if not enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    targetHrp.Size = Vector3.new(2, 2, 1)
+                    targetHrp.Transparency = 1
+                end
+            end
+        end
+    end
+end)
+
+-----------------------------------------------------------
+-- 5. Teleport UI Section
+-----------------------------------------------------------
+local function getOtherPlayers()
+    local list = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(list, p)
+        end
+    end
+    return list
+end
+
+-- Selector Box Background
+local tpFrame = Instance.new("Frame")
+tpFrame.Size = UDim2.new(0.88, 0, 0, 80)
+tpFrame.Position = UDim2.new(0.06, 0, 0, 330)
+tpFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+tpFrame.BorderSizePixel = 0
+tpFrame.Parent = mainFrame
+
+local tpCorner = Instance.new("UICorner")
+tpCorner.CornerRadius = UDim.new(0, 8)
+tpCorner.Parent = tpFrame
+
+local tpStroke = Instance.new("UIStroke")
+tpStroke.Color = Color3.fromRGB(80, 80, 110)
+tpStroke.Thickness = 1
+tpStroke.Parent = tpFrame
+
+-- Display Player Name
+local nameDisplay = Instance.new("TextLabel")
+nameDisplay.Size = UDim2.new(0.6, 0, 0, 30)
+nameDisplay.Position = UDim2.new(0.2, 0, 0, 5)
+nameDisplay.BackgroundTransparency = 1
+nameDisplay.Text = "ไม่มีผู้เล่นอื่น"
+nameDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameDisplay.Font = Enum.Font.GothamBold
+nameDisplay.TextSize = 11
+nameDisplay.TextScaled = true
+nameDisplay.Parent = tpFrame
+
+local function updatePlayerName()
+    local plist = getOtherPlayers()
+    if #plist == 0 then
+        nameDisplay.Text = "ไม่มีผู้เล่นอื่น"
+    else
+        if targetPlayerIndex > #plist then targetPlayerIndex = 1 end
+        if targetPlayerIndex < 1 then targetPlayerIndex = #plist end
+        nameDisplay.Text = plist[targetPlayerIndex].DisplayName
+    end
+end
+
+-- Left Button (<)
+local leftBtn = Instance.new("TextButton")
+leftBtn.Size = UDim2.new(0.2, 0, 0, 30)
+leftBtn.Position = UDim2.new(0, 0, 0, 5)
+leftBtn.BackgroundTransparency = 1
+leftBtn.Text = "<"
+leftBtn.TextColor3 = Color3.fromRGB(138, 43, 226)
+leftBtn.Font = Enum.Font.GothamBold
+leftBtn.TextSize = 18
+leftBtn.Parent = tpFrame
+
+leftBtn.MouseButton1Click:Connect(function()
+    playSound(SOUND_ID, 1.5)
+    targetPlayerIndex = targetPlayerIndex - 1
+    updatePlayerName()
+end)
+
+-- Right Button (>)
+local rightBtn = Instance.new("TextButton")
+rightBtn.Size = UDim2.new(0.2, 0, 0, 30)
+rightBtn.Position = UDim2.new(0.8, 0, 0, 5)
+rightBtn.BackgroundTransparency = 1
+rightBtn.Text = ">"
+rightBtn.TextColor3 = Color3.fromRGB(138, 43, 226)
+rightBtn.Font = Enum.Font.GothamBold
+rightBtn.TextSize = 18
+rightBtn.Parent = tpFrame
+
+rightBtn.MouseButton1Click:Connect(function()
+    playSound(SOUND_ID, 1.5)
+    targetPlayerIndex = targetPlayerIndex + 1
+    updatePlayerName()
+end)
+
+-- Teleport Action Button
+local tpButton = Instance.new("TextButton")
+tpButton.Size = UDim2.new(0.9, 0, 0, 30)
+tpButton.Position = UDim2.new(0.05, 0, 0, 42)
+tpButton.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+tpButton.Text = "🌀 TELEPORT TO PLAYER"
+tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpButton.Font = Enum.Font.GothamBold
+tpButton.TextSize = 11
+tpButton.Parent = tpFrame
+
+local tpBtnCorner = Instance.new("UICorner")
+tpBtnCorner.CornerRadius = UDim.new(0, 6)
+tpBtnCorner.Parent = tpButton
+
+tpButton.MouseButton1Click:Connect(function()
+    local plist = getOtherPlayers()
+    if #plist > 0 and plist[targetPlayerIndex] then
+        local targetChar = plist[targetPlayerIndex].Character
+        local myChar = LocalPlayer.Character
+        if targetChar and myChar and targetChar:FindFirstChild("HumanoidRootPart") and myChar:FindFirstChild("HumanoidRootPart") then
+            playSound(SOUND_ID, 1.8)
+            -- วาร์ปไปตำแหน่งข้างหลังผู้เล่น 3 studs
+            myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+end)
+
+-- Auto Update Player List
+Players.PlayerAdded:Connect(updatePlayerName)
+Players.PlayerRemoving:Connect(updatePlayerName)
+task.wait(1)
+updatePlayerName()
