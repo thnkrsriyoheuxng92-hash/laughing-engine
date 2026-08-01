@@ -1,0 +1,83 @@
+-- ดึง Kavo UI Library (ตัวนี้รันติดง่ายและลื่นมากในมือถือ)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("⚡ REAL DAMAGE HITBOX v2 ⚡", "DarkTheme")
+
+-- ค่าเริ่มต้น
+local Settings = {
+    Enabled = false,
+    Size = 15,
+    Transparency = 0.7,
+    TargetPart = "HumanoidRootPart"
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ฟังก์ชั่นขยาย Hitbox
+local function ApplyHitbox()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local target = player.Character:FindFirstChild(Settings.TargetPart)
+            if target then
+                if Settings.Enabled then
+                    target.Size = Vector3.new(Settings.Size, Settings.Size, Settings.Size)
+                    target.Transparency = Settings.Transparency
+                    target.Color = Color3.fromRGB(170, 0, 255) -- สีม่วงนีออน
+                    target.Material = Enum.Material.Neon
+                    target.CanCollide = false
+                else
+                    -- คืนค่าปกติ
+                    target.Size = (Settings.TargetPart == "Head") and Vector3.new(2, 1, 1) or Vector3.new(2, 2, 1)
+                    target.Transparency = (Settings.TargetPart == "Head") and 0 or 1
+                    target.Material = Enum.Material.Plastic
+                end
+            end
+        end
+    end
+end
+
+-- ลูปทำงาน
+task.spawn(function()
+    while task.wait(0.3) do
+        pcall(function()
+            if Settings.Enabled then
+                ApplyHitbox()
+            end
+        end)
+    end
+end)
+
+-- ==================== [ UI TAB ] ====================
+local Tab = Window:NewTab("⚔️ Hitbox Main")
+local Section = Tab:NewSection("🎯 ตั้งค่า Hitbox โดนดาเมจ")
+
+-- ปุ่มเปิด/ปิด
+Section:NewToggle("เปิดใช้งาน Hitbox", "เปิด/ปิด ระบบขยายกล่องโดนตี", function(state)
+    Settings.Enabled = state
+    if not state then
+        ApplyHitbox() -- คืนค่าเดิมทันทีที่ปิด
+    end
+end)
+
+-- ปรับขนาด
+Section:NewSlider("ขนาด Hitbox", "ยิ่งใหญ่ยิ่งฟันโดนง่าย", 50, 2, function(s)
+    Settings.Size = s
+end)
+
+-- ปรับความโปร่งใส
+Section:NewSlider("ความใส (0 = ชัด, 1 = ล่องหน)", "ปรับความใสของกล่อง", 10, 0, function(s)
+    Settings.Transparency = s / 10
+end)
+
+-- เลือกส่วน
+Section:NewDropdown("เลือกส่วนที่ขยาย", "แนะนำ HumanoidRootPart", {"HumanoidRootPart", "Head"}, function(currentOption)
+    Settings.TargetPart = currentOption
+end)
+
+-- TAB 2: UI SETTINGS
+local Tab2 = Window:NewTab("⚙️ ตั้งค่า UI")
+local Section2 = Tab2:NewSection("ปุ่มย่อ/เปิด UI")
+
+Section2:NewKeybind("ปุ่มย่อหน้าต่าง (Keybind)", "กดเพื่อซ่อนหรือเปิดเมนู", Enum.KeyCode.RightControl, function()
+    Library:ToggleUI()
+end)
