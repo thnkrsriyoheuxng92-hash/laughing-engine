@@ -1,0 +1,148 @@
+-- ดึง UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- สร้างหน้าต่างหลัก
+local Window = OrionLib:MakeWindow({
+    Name = "⚡ REAL DAMAGE HITBOX | DELTA ⚡", 
+    HidePremium = false, 
+    SaveConfig = false, 
+    IntroText = "Loading Damage Hitbox...",
+    Color = Color3.fromRGB(255, 85, 0) -- โทนส้ม-ม่วง นีออน
+})
+
+-- ค่าเริ่มต้น (Settings)
+local Settings = {
+    Enabled = false,
+    Size = 15,
+    Transparency = 0.7,
+    Color = Color3.fromRGB(255, 0, 128),
+    TargetPart = "HumanoidRootPart" -- สามารถเลือก Head หรือ HumanoidRootPart ได้
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ฟังก์ชั่นขยาย Hitbox ให้รับ Damage ได้
+local function ApplyHitbox(player)
+    if player ~= LocalPlayer and player.Character then
+        local char = player.Character
+        local target = char:FindFirstChild(Settings.TargetPart)
+        
+        if target then
+            if Settings.Enabled then
+                target.Size = Vector3.new(Settings.Size, Settings.Size, Settings.Size)
+                target.Transparency = Settings.Transparency
+                target.Color = Settings.Color
+                target.Material = Enum.Material.Neon
+                target.CanCollide = false -- ไม่ให้ชนเราดันกระเด็น
+            else
+                -- คืนค่าปกติ
+                target.Size = (Settings.TargetPart == "Head") and Vector3.new(2, 1, 1) or Vector3.new(2, 2, 1)
+                target.Transparency = (Settings.TargetPart == "Head") and 0 or 1
+                target.Material = Enum.Material.Plastic
+            end
+        end
+    end
+end
+
+-- ลูปอัปเดต Hitbox ตลอดเวลา (รองรับเวลาศัตรูเกิดใหม่)
+task.spawn(function()
+    while task.wait(0.2) do
+        if Settings.Enabled then
+            for _, player in pairs(Players:GetPlayers()) do
+                pcall(function()
+                    ApplyHitbox(player)
+                end)
+            end
+        end
+    end
+end)
+
+-- ==================== [ TAB 1: MAIN ] ====================
+local MainTab = Window:MakeTab({
+    Name = "⚔️ Hitbox & Damage",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+MainTab:AddSection({
+    Name = "🎯 ปรับแต่งระบบโดนดาเมจ"
+})
+
+-- เปิด/ปิด สคริปต์
+MainTab:AddToggle({
+    Name = "เปิดใช้งาน Hitbox (ตีติดดาเมจ)",
+    Default = false,
+    Callback = function(Value)
+        Settings.Enabled = Value
+        if not Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                pcall(function() ApplyHitbox(player) end)
+            end
+        end
+    end    
+})
+
+-- เลือกส่วนที่จะขยาย
+MainTab:AddDropdown({
+    Name = "เลือกส่วนที่ต้องการขยาย",
+    Default = "HumanoidRootPart",
+    Options = {"HumanoidRootPart", "Head"},
+    Callback = function(Value)
+        Settings.TargetPart = Value
+    end    
+})
+
+-- ปรับขนาด
+MainTab:AddSlider({
+    Name = "ขนาด Hitbox (ยิ่งใหญ่ยิ่งตีง่าย)",
+    Min = 2,
+    Max = 80,
+    Default = 15,
+    Color = Color3.fromRGB(255, 85, 0),
+    Increment = 1,
+    ValueName = "Studs",
+    Callback = function(Value)
+        Settings.Size = Value
+    end    
+})
+
+-- ปรับความโปร่งใส
+MainTab:AddSlider({
+    Name = "ความโปร่งแสง (Transparency)",
+    Min = 0,
+    Max = 1,
+    Default = 0.7,
+    Color = Color3.fromRGB(255, 85, 0),
+    Increment = 0.1,
+    ValueName = "",
+    Callback = function(Value)
+        Settings.Transparency = Value
+    end    
+})
+
+-- ปรับสี
+MainTab:AddColorpicker({
+    Name = "สีกล่อง Hitbox",
+    Default = Color3.fromRGB(255, 0, 128),
+    Callback = function(Value)
+        Settings.Color = Value
+    end	
+})
+
+-- ==================== [ TAB 2: UI TOGGLE ] ====================
+local UITab = Window:MakeTab({
+    Name = "⚙️ ปุ่มซ่อน UI",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+UITab:AddButton({
+    Name = "ย่อ / ขยาย หน้าต่าง (Toggle UI)",
+    Callback = function()
+        OrionLib:ToggleUI()
+    end
+})
+
+-- รัน UI
+OrionLib:Init()
