@@ -1,0 +1,162 @@
+-- ป้องกันการรันซ้ำ
+if game:GetService("CoreGui"):FindFirstChild("CustomHitboxUI") then
+    game:GetService("CoreGui").CustomHitboxUI:Destroy()
+end
+
+-- ตั้งค่าหลัก
+local HitboxEnabled = false
+local HitboxSize = 10
+local TargetPart = "HumanoidRootPart"
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ==================== [ สร้าง UI ] ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomHitboxUI"
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+
+-- ปุ่มย่อ/ขยาย แบบลอย (Mini Toggle Button)
+local MiniBtn = Instance.new("TextButton")
+MiniBtn.Name = "MiniBtn"
+MiniBtn.Parent = ScreenGui
+MiniBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 255)
+MiniBtn.Position = UDim2.new(0, 10, 0.4, 0)
+MiniBtn.Size = UDim2.new(0, 45, 0, 45)
+MiniBtn.Font = Enum.Font.SourceSansBold
+MiniBtn.Text = "⚡"
+MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MiniBtn.TextSize = 25
+MiniBtn.Active = true
+MiniBtn.Draggable = true
+
+local UICornerMini = Instance.new("UICorner")
+UICornerMini.CornerRadius = UDim.new(1, 0)
+UICornerMini.Parent = MiniBtn
+
+-- กรอบหน้าต่างหลัก (Main Frame)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 210)
+MainFrame.Active = true
+MainFrame.Draggable = true -- เลื่อนหน้าต่างได้
+
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 10)
+UICornerMain.Parent = MainFrame
+
+-- แถบหัวข้อ (Title Bar)
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(120, 0, 255)
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "  ⚡ HITBOX SYSTEM (DELTA)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local UICornerTitle = Instance.new("UICorner")
+UICornerTitle.CornerRadius = UDim.new(0, 10)
+UICornerTitle.Parent = Title
+
+-- ปุ่ม เปิด/ปิด Hitbox
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+ToggleBtn.Position = UDim2.new(0.08, 0, 0.25, 0)
+ToggleBtn.Size = UDim2.new(0.84, 0, 0, 35)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Text = "สถานะ: ปิดอยู่ (OFF)"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 16
+
+local UICornerToggle = Instance.new("UICorner")
+UICornerToggle.CornerRadius = UDim.new(0, 6)
+UICornerToggle.Parent = ToggleBtn
+
+-- ข้อความอธิบายช่องใส่เลข
+local InputLabel = Instance.new("TextLabel")
+InputLabel.Parent = MainFrame
+InputLabel.BackgroundTransparency = 1
+InputLabel.Position = UDim2.new(0.08, 0, 0.48, 0)
+InputLabel.Size = UDim2.new(0.84, 0, 0, 20)
+InputLabel.Font = Enum.Font.SourceSans
+InputLabel.Text = "พิมพ์ขนาด Hitbox ที่ต้องการ:"
+InputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+InputLabel.TextSize = 14
+
+-- ช่องพิมพ์ตัวเลข (Textbox)
+local InputBox = Instance.new("TextBox")
+InputBox.Parent = MainFrame
+InputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+InputBox.Position = UDim2.new(0.08, 0, 0.60, 0)
+InputBox.Size = UDim2.new(0.84, 0, 0, 35)
+InputBox.Font = Enum.Font.SourceSansBold
+InputBox.Text = "10"
+InputBox.TextColor3 = Color3.fromRGB(0, 255, 150)
+InputBox.TextSize = 18
+
+local UICornerInput = Instance.new("UICorner")
+UICornerInput.CornerRadius = UDim.new(0, 6)
+UICornerInput.Parent = InputBox
+
+-- ==================== [ ระบบทำงาน ] ====================
+
+-- เปิด/ปิด หน้าต่างด้วยปุ่มลอย ⚡
+MiniBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- กดปุ่ม เปิด/ปิด Hitbox
+ToggleBtn.MouseButton1Click:Connect(function()
+    HitboxEnabled = not HitboxEnabled
+    if HitboxEnabled then
+        ToggleBtn.Text = "สถานะ: เปิดใช้งาน (ON)"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+    else
+        ToggleBtn.Text = "สถานะ: ปิดอยู่ (OFF)"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+-- รับค่าตัวเลขจากช่องพิมพ์
+InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local num = tonumber(InputBox.Text)
+    if num then
+        HitboxSize = num
+    end
+end)
+
+-- ฟังก์ชันปรับขนาด Hitbox
+local function ApplyHitbox()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local target = player.Character:FindFirstChild(TargetPart)
+            if target then
+                if HitboxEnabled then
+                    target.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                    target.Transparency = 0.6
+                    target.Color = Color3.fromRGB(140, 0, 255)
+                    target.Material = Enum.Material.Neon
+                    target.CanCollide = false
+                else
+                    target.Size = Vector3.new(2, 2, 1)
+                    target.Transparency = 1
+                    target.Material = Enum.Material.Plastic
+                end
+            end
+        end
+    end
+end
+
+-- ลูปอัปเดตตลอดเวลา
+task.spawn(function()
+    while task.wait(0.3) do
+        pcall(ApplyHitbox)
+    end
+end)
