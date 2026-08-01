@@ -1,0 +1,93 @@
+-- ดึง Library (Orion)
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- สร้างหน้าต่างหลัก
+local Window = OrionLib:MakeWindow({
+    Name = "⚡ HITBOX MODIFIER | INPUT",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "HitboxConfig",
+    IntroText = "ระบบพร้อมใช้งาน (พิมพ์เลขได้)",
+    Color = Color3.fromRGB(120, 0, 255) 
+})
+
+-- ตัวแปรควบคุม
+local HitboxEnabled = false
+local HitboxSize = 10
+local TargetPart = "HumanoidRootPart"
+
+-- ฟังก์ชันขยาย Hitbox
+local function ApplyHitbox()
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character then
+            local target = player.Character:FindFirstChild(TargetPart)
+            if target then
+                if HitboxEnabled then
+                    target.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                    target.Transparency = 0.6
+                    target.Color = Color3.fromRGB(255, 0, 255)
+                    target.Material = Enum.Material.Neon
+                    target.CanCollide = false
+                else
+                    target.Size = (TargetPart == "Head") and Vector3.new(2,1,1) or Vector3.new(2,2,1)
+                    target.Transparency = (TargetPart == "Head") and 0 or 1
+                    target.Material = Enum.Material.Plastic
+                end
+            end
+        end
+    end
+end
+
+-- ลูปทำงาน
+task.spawn(function()
+    while task.wait(0.5) do
+        if HitboxEnabled then pcall(ApplyHitbox) end
+    end
+end)
+
+-- TAB: เมนูหลัก
+local MainTab = Window:MakeTab({Name = "⚔️ ฟังก์ชัน", Icon = "rbxassetid://4483345998"})
+
+MainTab:AddToggle({
+    Name = "เปิด Hitbox (ดาเมจ)",
+    Default = false,
+    Callback = function(v)
+        HitboxEnabled = v
+        if not v then ApplyHitbox() end
+    end
+})
+
+-- เพิ่ม Textbox ให้พิมพ์เลขได้
+MainTab:AddTextbox({
+    Name = "พิมพ์ขนาด Hitbox (เลข)",
+    Default = "10",
+    TextDisappear = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num then
+            HitboxSize = num
+        end
+    end
+})
+
+MainTab:AddDropdown({
+    Name = "เป้าหมาย (Part)",
+    Default = "HumanoidRootPart",
+    Options = {"HumanoidRootPart", "Head"},
+    Callback = function(v) TargetPart = v end
+})
+
+-- TAB: การตั้งค่า UI
+local SettingsTab = Window:MakeTab({Name = "⚙️ ตั้งค่า UI", Icon = "rbxassetid://4483345998"})
+
+SettingsTab:AddButton({
+    Name = "ซ่อน/ย่อหน้าต่าง (Toggle UI)",
+    Callback = function()
+        OrionLib:ToggleUI()
+    end
+})
+
+SettingsTab:AddLabel("วิธีเลื่อน: กดค้างที่แถบสีม่วงด้านบน")
+
+-- เริ่มการทำงาน
+OrionLib:Init()
