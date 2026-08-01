@@ -1,0 +1,209 @@
+-- ========================================================
+-- Delta UI Script: ESP + Noclip with UI & Sound Effects
+-- ========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local LocalPlayer = Players.LocalPlayer
+
+-- States
+local espEnabled = false
+local noclipEnabled = false
+local espHighlights = {}
+
+-----------------------------------------------------------
+-- 1. Sound Setup (ระบบเสียง)
+-----------------------------------------------------------
+local function playSound(soundId, pitch)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://" .. tostring(soundId)
+    sound.Volume = 0.5
+    sound.Pitch = pitch or 1
+    sound.Parent = SoundService
+    sound:Play()
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+end
+
+-- ID เสียงสำหรับ กดเปิด / กดปิด
+local SOUND_ON = 6895079853   -- เสียงคลิกเปิดแบบอนาคต/ไซไฟ
+local SOUND_OFF = 6895079853  -- เสียงเดียวกันแต่ปรับ Pitch ต่ำลง
+
+-----------------------------------------------------------
+-- 2. ESP System (ระบบมองทะลุ)
+-----------------------------------------------------------
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    
+    local function setupHighlight(character)
+        if not character then return end
+        if character:FindFirstChild("DeltaESP") then return end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "DeltaESP"
+        highlight.FillColor = Color3.fromRGB(255, 0, 127) -- สีชมพูเรืองแสง
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = character
+        highlight.Parent = character
+        
+        -- ใส่ NameTag บนหัว
+        local head = character:WaitForChild("Head", 3)
+        if head and not head:FindFirstChild("DeltaNameTag") then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "DeltaNameTag"
+            billboard.Adornee = head
+            billboard.Size = UDim2.new(0, 100, 0, 30)
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+            billboard.AlwaysOnTop = true
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.DisplayName
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLabel.TextStrokeTransparency = 0
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 12
+            nameLabel.Parent = billboard
+            
+            billboard.Parent = head
+        end
+    end
+
+    if player.Character then setupHighlight(player.Character) end
+    player.CharacterAdded:Connect(setupHighlight)
+end
+
+local function removeESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local hl = player.Character:FindFirstChild("DeltaESP")
+            if hl then hl:Destroy() end
+            if player.Character:FindFirstChild("Head") then
+                local tag = player.Character.Head:FindFirstChild("DeltaNameTag")
+                if tag then tag:Destroy() end
+            end
+        end
+    end
+end
+
+-----------------------------------------------------------
+-- 3. Noclip System (ระบบเดินทะลุ)
+-----------------------------------------------------------
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-----------------------------------------------------------
+-- 4. Elegant Modern GUI Design
+-----------------------------------------------------------
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+if playerGui:FindFirstChild("DeltaHackGUI") then
+    playerGui.DeltaHackGUI:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaHackGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Frame หลัก
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 190)
+mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true -- ลากย้ายหน้าจอได้
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim me if standard and standard or UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(138, 43, 226) -- ขอบสีม่วงนีออน
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+-- Title Bar Header
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚡ DELTA MENU"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.Parent = mainFrame
+
+-- ฟังก์ชันสร้างปุ่มเมนู
+local function createToggleButton(name, posY, onClick)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.85, 0, 0, 40)
+    button.Position = UDim2.new(0.075, 0, 0, posY)
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    button.Text = name .. " : OFF"
+    button.TextColor3 = Color3.fromRGB(180, 180, 180)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 13
+    button.AutoButtonColor = false
+    button.Parent = mainFrame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = button
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(60, 60, 80)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = button
+
+    local state = false
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            -- เมื่อเปิด (ON)
+            playSound(SOUND_ON, 1.2)
+            button.Text = name .. " : ON"
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+            btnStroke.Color = Color3.fromRGB(200, 100, 255)
+        else
+            -- เมื่อปิด (OFF)
+            playSound(SOUND_OFF, 0.7)
+            button.Text = name .. " : OFF"
+            button.TextColor3 = Color3.fromRGB(180, 180, 180)
+            button.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+            btnStroke.Color = Color3.fromRGB(60, 60, 80)
+        end
+        onClick(state)
+    end)
+end
+
+-- สร้างปุ่ม ESP
+createToggleButton("👁️ ESP (มองทะลุ)", 50, function(enabled)
+    espEnabled = enabled
+    if espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            applyESP(p)
+        end
+        Players.PlayerAdded:Connect(applyESP)
+    else
+        removeESP()
+    end
+end)
+
+-- สร้างปุ่ม Noclip
+createToggleButton("👻 NOCLIP (เดินทะลุ)", 105, function(enabled)
+    noclipEnabled = enabled
+end)
