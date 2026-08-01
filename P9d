@@ -1,0 +1,555 @@
+-- ========================================================
+-- Delta UI Script: CYBER GOD V6 (SPECTATE EDITION)
+-- ========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- States
+local espEnabled = false
+local noclipEnabled = false
+local speedEnabled = false
+local jumpEnabled = false
+local brightEnabled = false
+local magnetEnabled = false
+local hitboxEnabled = false
+local infJumpEnabled = false
+local flyEnabled = false
+local flingEnabled = false
+local invisibleEnabled = false
+local spectateEnabled = false
+local isMinimized = false
+
+-- Teleport, Fly & Spectate Variables
+local targetPlayerIndex = 1
+local flyBodyVel, flyBodyGyro
+
+-- Save Original Lighting Settings
+local origBrightness = Lighting.Brightness
+local origClockTime = Lighting.ClockTime
+local origFogEnd = Lighting.FogEnd
+local origGlobalShadows = Lighting.GlobalShadows
+
+-----------------------------------------------------------
+-- 1. Sound Setup
+-----------------------------------------------------------
+local function playSound(soundId, pitch)
+    task.spawn(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://" .. tostring(soundId)
+        sound.Volume = 0.6
+        sound.Pitch = pitch or 1
+        sound.Parent = SoundService
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    end)
+end
+
+local SOUND_ID = 6895079853
+
+-----------------------------------------------------------
+-- 2. Core Functions & Events
+-----------------------------------------------------------
+
+-- ESP System
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    
+    local function setupHighlight(character)
+        if not character then return end
+        if character:FindFirstChild("DeltaESP") then return end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "DeltaESP"
+        highlight.FillColor = Color3.fromRGB(255, 0, 85)
+        highlight.FillTransparency = 0.4
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.Adornee = character
+        highlight.Parent = character
+        
+        local head = character:WaitForChild("Head", 3)
+        if head and not head:FindFirstChild("DeltaNameTag") then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "DeltaNameTag"
+            billboard.Adornee = head
+            billboard.Size = UDim2.new(0, 100, 0, 30)
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+            billboard.AlwaysOnTop = true
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.DisplayName
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLabel.TextStrokeTransparency = 0
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 11
+            nameLabel.Parent = billboard
+            billboard.Parent = head
+        end
+    end
+
+    if player.Character then setupHighlight(player.Character) end
+    player.CharacterAdded:Connect(setupHighlight)
+end
+
+local function removeESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local hl = player.Character:FindFirstChild("DeltaESP")
+            if hl then hl:Destroy() end
+            if player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("DeltaNameTag") then
+                player.Character.Head.DeltaNameTag:Destroy()
+            end
+        end
+    end
+end
+
+-- Infinite Jump Event
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+-- Main Loop
+RunService.Stepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    -- Noclip
+    if noclipEnabled or flyEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end
+
+    -- Speed & Jump
+    if hum then
+        if speedEnabled then hum.WalkSpeed = 70 else hum.WalkSpeed = 16 end
+        if jumpEnabled then hum.JumpPower = 150 else hum.JumpPower = 50 end
+    end
+
+    -- Item Magnet
+    if magnetEnabled and hrp then
+        for _, v in pairs(workspace:GetChildren()) do
+            if v:IsA("Part") or v:IsA("MeshPart") then
+                if not v:Anchored() and (v.Position - hrp.Position).Magnitude <= 70 then
+                    v.CFrame = hrp.CFrame
+                end
+            end
+        end
+    end
+
+    -- Hitbox Expander
+    if hitboxEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    targetHrp.Size = Vector3.new(14, 14, 14)
+                    targetHrp.Transparency = 0.7
+                    targetHrp.BrickColor = BrickColor.new("Really red")
+                    targetHrp.Material = Enum.Material.Neon
+                    targetHrp.CanCollide = false
+                end
+            end
+        end
+    end
+
+    -- 💥 Fling System
+    if flingEnabled and hrp then
+        hrp.Velocity = Vector3.new(10000, 10000, 10000)
+        hrp.RotVelocity = Vector3.new(10000, 10000, 10000)
+    end
+end)
+
+-----------------------------------------------------------
+-- 3. Compact Grid UI Design
+-----------------------------------------------------------
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+if playerGui:FindFirstChild("DeltaGodGUI") then
+    playerGui.DeltaGodGUI:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaGodGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 290, 0, 275)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(255, 0, 85)
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+-- Title Bar
+local titleFrame = Instance.new("Frame")
+titleFrame.Size = UDim2.new(1, 0, 0, 32)
+titleFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+titleFrame.BorderSizePixel = 0
+titleFrame.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+titleLabel.Position = UDim2.new(0.04, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "☠️ CYBER GOD V6"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 13
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleFrame
+
+-- Minimize Button
+local minButton = Instance.new("TextButton")
+minButton.Size = UDim2.new(0, 24, 0, 24)
+minButton.Position = UDim2.new(1, -28, 0, 4)
+minButton.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+minButton.Text = "-"
+minButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minButton.Font = Enum.Font.GothamBold
+minButton.TextSize = 16
+minButton.Parent = titleFrame
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 5)
+minCorner.Parent = minButton
+
+-- Content Container
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, 0, 1, -32)
+contentContainer.Position = UDim2.new(0, 0, 0, 32)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Parent = mainFrame
+
+minButton.MouseButton1Click:Connect(function()
+    playSound(SOUND_ID, 1.4)
+    isMinimized = not isMinimized
+    if isMinimized then
+        contentContainer.Visible = false
+        mainFrame:TweenSize(UDim2.new(0, 290, 0, 32), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true)
+        minButton.Text = "+"
+        minButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+    else
+        mainFrame:TweenSize(UDim2.new(0, 290, 0, 275), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.2, true, function()
+            contentContainer.Visible = true
+        end)
+        minButton.Text = "-"
+        minButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+-----------------------------------------------------------
+-- 4. Create Grid Buttons
+-----------------------------------------------------------
+local function getOtherPlayers()
+    local list = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(list, p) end
+    end
+    return list
+end
+
+local function createGridButton(name, col, row, onClick)
+    local button = Instance.new("TextButton")
+    local posX = col == 1 and 0.04 or 0.52
+    local posY = 8 + (row - 1) * 34
+    
+    button.Size = UDim2.new(0.44, 0, 0, 28)
+    button.Position = UDim2.new(posX, 0, 0, posY)
+    button.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    button.Text = name .. " : OFF"
+    button.TextColor3 = Color3.fromRGB(160, 160, 180)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 10
+    button.AutoButtonColor = false
+    button.Parent = contentContainer
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 5)
+    btnCorner.Parent = button
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(50, 50, 70)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = button
+
+    local state = false
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            playSound(SOUND_ID, 1.2)
+            button.Text = name .. " : ON"
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(255, 0, 85)
+            btnStroke.Color = Color3.fromRGB(255, 100, 150)
+        else
+            playSound(SOUND_ID, 0.7)
+            button.Text = name .. " : OFF"
+            button.TextColor3 = Color3.fromRGB(160, 160, 180)
+            button.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+            btnStroke.Color = Color3.fromRGB(50, 50, 70)
+        end
+        onClick(state)
+    end)
+end
+
+-- Column 1
+createGridButton("👁️ ESP มองทะลุ", 1, 1, function(enabled)
+    espEnabled = enabled
+    if espEnabled then for _, p in pairs(Players:GetPlayers()) do applyESP(p) end else removeESP() end
+end)
+
+createGridButton("👻 NOCLIP เดินทะลุ", 1, 2, function(enabled)
+    noclipEnabled = enabled
+end)
+
+createGridButton("⚡ SPEED วิ่งไว", 1, 3, function(enabled)
+    speedEnabled = enabled
+end)
+
+createGridButton("🚀 INF JUMP โดดรัว", 1, 4, function(enabled)
+    infJumpEnabled = enabled
+end)
+
+createGridButton("💥 FLING ชนปลิว", 1, 5, function(enabled)
+    flingEnabled = enabled
+end)
+
+-- Column 2
+createGridButton("🎥 SPECTATE ส่องคน", 2, 1, function(enabled)
+    spectateEnabled = enabled
+    local camera = workspace.CurrentCamera
+    if spectateEnabled then
+        local plist = getOtherPlayers()
+        if #plist > 0 and plist[targetPlayerIndex] and plist[targetPlayerIndex].Character then
+            local targetHum = plist[targetPlayerIndex].Character:FindFirstChildOfClass("Humanoid")
+            if targetHum then
+                camera.CameraSubject = targetHum
+            end
+        end
+    else
+        if LocalPlayer.Character then
+            local myHum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if myHum then
+                camera.CameraSubject = myHum
+            end
+        end
+    end
+end)
+
+createGridButton("👻 INVIS ล่องหน", 2, 2, function(enabled)
+    invisibleEnabled = enabled
+    local char = LocalPlayer.Character
+    if invisibleEnabled and char and char:FindFirstChild("HumanoidRootPart") then
+        local savedPos = char.HumanoidRootPart.CFrame
+        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(0, 500, 0)
+        task.wait(0.1)
+        
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = 0.5
+            end
+        end
+        char.HumanoidRootPart.CFrame = savedPos
+    else
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.Transparency = 0
+                end
+            end
+        end
+    end
+end)
+
+createGridButton("🎈 FLY บินอิสระ", 2, 3, function(enabled)
+    flyEnabled = enabled
+    local char = LocalPlayer.Character
+    if flyEnabled and char and char:FindFirstChild("HumanoidRootPart") then
+        local hrp = char.HumanoidRootPart
+        
+        flyBodyVel = Instance.new("BodyVelocity")
+        flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVel.MaxForce = Vector3.new(100000, 100000, 100000)
+        flyBodyVel.Parent = hrp
+        
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(100000, 100000, 100000)
+        flyBodyGyro.CFrame = hrp.CFrame
+        flyBodyGyro.Parent = hrp
+        
+        task.spawn(function()
+            while flyEnabled and char and char:FindFirstChild("HumanoidRootPart") do
+                local camCFrame = workspace.CurrentCamera.CFrame
+                flyBodyGyro.CFrame = camCFrame
+                
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    local moveDir = hum.MoveDirection
+                    if moveDir.Magnitude > 0 then
+                        flyBodyVel.Velocity = camCFrame:VectorToWorldSpace(camCFrame:VectorToObjectSpace(moveDir) * 60)
+                    else
+                        flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end
+                task.wait()
+            end
+            if flyBodyVel then flyBodyVel:Destroy() end
+            if flyBodyGyro then flyBodyGyro:Destroy() end
+        end)
+    else
+        if flyBodyVel then flyBodyVel:Destroy() end
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+    end
+end)
+
+createGridButton("💡 FULLBRIGHT สว่าง", 2, 4, function(enabled)
+    brightEnabled = enabled
+    if brightEnabled then
+        Lighting.Brightness = 2; Lighting.ClockTime = 14; Lighting.FogEnd = 100000; Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = origBrightness; Lighting.ClockTime = origClockTime; Lighting.FogEnd = origFogEnd; Lighting.GlobalShadows = origGlobalShadows
+    end
+end)
+
+-----------------------------------------------------------
+-- 5. Player Selection UI Section
+-----------------------------------------------------------
+local tpFrame = Instance.new("Frame")
+tpFrame.Size = UDim2.new(0.92, 0, 0, 52)
+tpFrame.Position = UDim2.new(0.04, 0, 0, 180)
+tpFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+tpFrame.BorderSizePixel = 0
+tpFrame.Parent = contentContainer
+
+local tpCorner = Instance.new("UICorner")
+tpCorner.CornerRadius = UDim.new(0, 6)
+tpCorner.Parent = tpFrame
+
+local tpStroke = Instance.new("UIStroke")
+tpStroke.Color = Color3.fromRGB(70, 70, 100)
+tpStroke.Thickness = 1
+tpStroke.Parent = tpFrame
+
+local nameDisplay = Instance.new("TextLabel")
+nameDisplay.Size = UDim2.new(0.6, 0, 0, 20)
+nameDisplay.Position = UDim2.new(0.2, 0, 0, 2)
+nameDisplay.BackgroundTransparency = 1
+nameDisplay.Text = "ไม่มีผู้เล่นอื่น"
+nameDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameDisplay.Font = Enum.Font.GothamBold
+nameDisplay.TextSize = 10
+nameDisplay.TextScaled = true
+nameDisplay.Parent = tpFrame
+
+local function updatePlayerName()
+    local plist = getOtherPlayers()
+    if #plist == 0 then
+        nameDisplay.Text = "ไม่มีผู้เล่นอื่น"
+    else
+        if targetPlayerIndex > #plist then targetPlayerIndex = 1 end
+        if targetPlayerIndex < 1 then targetPlayerIndex = #plist end
+        nameDisplay.Text = plist[targetPlayerIndex].DisplayName
+        
+        -- ถ้าเปิด Spectate อยู่อัตโนมัติ สลับส่องตามคนที่เลือกทันที
+        if spectateEnabled and plist[targetPlayerIndex].Character then
+            local targetHum = plist[targetPlayerIndex].Character:FindFirstChildOfClass("Humanoid")
+            if targetHum then
+                workspace.CurrentCamera.CameraSubject = targetHum
+            end
+        end
+    end
+end
+
+local leftBtn = Instance.new("TextButton")
+leftBtn.Size = UDim2.new(0.18, 0, 0, 20)
+leftBtn.Position = UDim2.new(0, 0, 0, 2)
+leftBtn.BackgroundTransparency = 1
+leftBtn.Text = "<"
+leftBtn.TextColor3 = Color3.fromRGB(255, 0, 85)
+leftBtn.Font = Enum.Font.GothamBold
+leftBtn.TextSize = 16
+leftBtn.Parent = tpFrame
+
+leftBtn.MouseButton1Click:Connect(function()
+    playSound(SOUND_ID, 1.5)
+    targetPlayerIndex = targetPlayerIndex - 1
+    updatePlayerName()
+end)
+
+local rightBtn = Instance.new("TextButton")
+rightBtn.Size = UDim2.new(0.18, 0, 0, 20)
+rightBtn.Position = UDim2.new(0.82, 0, 0, 2)
+rightBtn.BackgroundTransparency = 1
+rightBtn.Text = ">"
+rightBtn.TextColor3 = Color3.fromRGB(255, 0, 85)
+rightBtn.Font = Enum.Font.GothamBold
+rightBtn.TextSize = 16
+rightBtn.Parent = tpFrame
+
+rightBtn.MouseButton1Click:Connect(function()
+    playSound(SOUND_ID, 1.5)
+    targetPlayerIndex = targetPlayerIndex + 1
+    updatePlayerName()
+end)
+
+local tpButton = Instance.new("TextButton")
+tpButton.Size = UDim2.new(0.92, 0, 0, 24)
+tpButton.Position = UDim2.new(0.04, 0, 0, 24)
+tpButton.BackgroundColor3 = Color3.fromRGB(255, 0, 85)
+tpButton.Text = "🌀 TELEPORT TO PLAYER"
+tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpButton.Font = Enum.Font.GothamBold
+tpButton.TextSize = 10
+tpButton.Parent = tpFrame
+
+local tpBtnCorner = Instance.new("UICorner")
+tpBtnCorner.CornerRadius = UDim.new(0, 5)
+tpBtnCorner.Parent = tpButton
+
+tpButton.MouseButton1Click:Connect(function()
+    local plist = getOtherPlayers()
+    if #plist > 0 and plist[targetPlayerIndex] then
+        local targetChar = plist[targetPlayerIndex].Character
+        local myChar = LocalPlayer.Character
+        if targetChar and myChar and targetChar:FindFirstChild("HumanoidRootPart") and myChar:FindFirstChild("HumanoidRootPart") then
+            playSound(SOUND_ID, 1.8)
+            myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+end)
+
+-- Auto Events
+Players.PlayerAdded:Connect(function(p)
+    if espEnabled then applyESP(p) end
+    updatePlayerName()
+end)
+Players.PlayerRemoving:Connect(updatePlayerName)
+task.wait(1)
+updatePlayerName()
